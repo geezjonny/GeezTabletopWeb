@@ -29,12 +29,18 @@ try{
   assert.match(await page.locator('#status').textContent(),/Offline.*sample/);
   assert.equal(await page.evaluate(()=>window.__TABLETOP__.built.get(1).group.visible),false);
   // Exercise tap-select/tap-cell using projected world coordinates and real mouse events.
+  // The camera glides to a stop (damping); project and click only once it has stopped, or a
+  // slow machine clicks beside the token.
+  async function settle(){await page.evaluate(()=>new Promise(done=>{const t=window.__TABLETOP__;let last='',still=0;const tick=()=>{const now=t.camera.matrixWorld.elements.map(v=>v.toFixed(5)).join();still=now===last?still+1:0;last=now;if(still>=10)done();else requestAnimationFrame(tick);};tick();}));}
+  async function onToken(p){return page.evaluate(p=>window.__TABLETOP__.pick({clientX:p.x,clientY:p.y})?.token===window.__TABLETOP__.own(),p);}
   async function screen(x,y,z){return page.evaluate(async p=>{const {Vector3}=await import('three'),t=window.__TABLETOP__,v=new Vector3(...p).project(t.camera),r=t.renderer.domElement.getBoundingClientRect();return {x:r.left+(v.x+1)*r.width/2,y:r.top+(1-v.y)*r.height/2};},[x,y,z]);}
-  let from=await screen(3.5,.12,6.5),to=await screen(4.5,0,6.5);
+  await settle();let from=await screen(3.5,.12,6.5),to=await screen(4.5,0,6.5);
+  assert.ok(await onToken(from),'own token under the cursor before the tap');
   await page.mouse.click(from.x,from.y);await page.mouse.click(to.x,to.y);
   await page.waitForFunction(()=>window.__TABLETOP__.state.tokens.gh_test.x===.375);
   // A real drag moves the same token another cell.
-  await page.waitForTimeout(300);from=await screen(4.5,.12,6.5);to=await screen(4.5,0,5.5);
+  await settle();from=await screen(4.5,.12,6.5);to=await screen(4.5,0,5.5);
+  assert.ok(await onToken(from),'own token under the cursor before the drag');
   await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:8});await page.mouse.up();
   await page.waitForFunction(()=>window.__TABLETOP__.state.tokens.gh_test.y===.55);
   await page.mouse.click(to.x,to.y,{button:'right'});await page.waitForFunction(()=>window.__TABLETOP__.pings.entries.size===1);
