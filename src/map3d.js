@@ -1,3 +1,4 @@
+import {invalidate} from './rendering.js';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {LEVEL_HEIGHT,heightAt,yaw,cellKey} from './coordinates.js';
@@ -13,7 +14,7 @@ const available=path=>manifest?.includes(path);
 function texture(path,fallback){
   path=available(path)?path:fallback;if(!path||!available(path))return null;
   if(!textures.has(path)){
-    const tex=new THREE.TextureLoader().load(path);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;textures.set(path,tex);
+    const tex=new THREE.TextureLoader().load(path,invalidate);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;textures.set(path,tex);
   }
   return textures.get(path);
 }
@@ -37,7 +38,7 @@ export function billboard(text,color='#e4d5b7',avatar=null){
   const ctx=canvas.getContext('2d');ctx.fillStyle='#17232deb';ctx.beginPath();ctx.roundRect(3,12,250,104,16);ctx.fill();ctx.fillStyle=color;ctx.font='600 42px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text.slice(0,24),128,64,236);
   const tex=new THREE.CanvasTexture(canvas),material=new THREE.SpriteMaterial({map:tex,depthTest:true});const sprite=new THREE.Sprite(material);sprite.scale.set(1.8,.9,1);
   sprite.userData.ownedTexture=tex;
-  if(avatar){const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{ctx.clearRect(0,0,256,128);ctx.drawImage(image,64,0,128,128);tex.needsUpdate=true;};image.src=avatar;}
+  if(avatar){const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{ctx.clearRect(0,0,256,128);ctx.drawImage(image,64,0,128,128);tex.needsUpdate=true;invalidate();};image.src=avatar;}
   return sprite;
 }
 export function disposeGroup(group){
@@ -132,13 +133,15 @@ export class Floor3D {
   }
   doorStates(states={}){for(const [key,d]of this.doors)d.target=doorRules(d.kind,states[key]==='open').closed?0:Math.PI/2;}
   update(dt,viewer,camera,reduced=false){
-    for(const d of this.doors.values()){d.current=reduced?d.target:THREE.MathUtils.damp(d.current,d.target,12,dt);if(['portcullis','curtain'].includes(d.kind))d.hinge.position.y=d.current/(Math.PI/2)*2.2;else d.hinge.rotation.y=d.current;}
+    let active=false;
+    for(const d of this.doors.values()){d.current=reduced||Math.abs(d.current-d.target)<.001?d.target:THREE.MathUtils.damp(d.current,d.target,12,dt);active ||= d.current!==d.target;if(['portcullis','curtain'].includes(d.kind))d.hinge.position.y=d.current/(Math.PI/2)*2.2;else d.hinge.rotation.y=d.current;}
     for(const roof of this.roofs)roof.group.visible=!(viewer&&roof.cells.has(cellKey(viewer.x,viewer.y)));
     for(const {mesh,spans,values}of this.wallBatches){
       let changed=false;
       for(const {wall,start,end}of spans){const fade=viewer&&camera.y>this.f*3&&camera.y<30+this.f*3&&intersects({x:camera.x,y:camera.z},viewer,wall)?.15:1;if(values[start]!==Math.fround(fade)){values.fill(fade,start,end);changed=true;}}
       if(changed)mesh.geometry.attributes.wallAlpha.needsUpdate=true;
     }
+    return active;
   }
   dispose(){
     // Model geometry and texture caches survive floor rebuilds; cloned materials do not.

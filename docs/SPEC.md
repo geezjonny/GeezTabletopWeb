@@ -1,8 +1,8 @@
 # GeezTabletop Web: the players' 3D battle map (v1)
 
 A static web page (three.js, no build step, no server of our own) that shows players the map the GM
-runs in GeezTabletop (the Godot app in `../godot-vtt`), **in 3D**, on a phone, tablet or TV browser.
-It replaces GeezSheets' 2D player battle map for GeezTabletop maps.
+runs in GeezTabletop (the Godot app in `../godot-vtt`), **in 3D**, on a computer browser, including older laptops and Intel MacBooks.
+It opens in a new tab from GeezSheets' 2D player battle map using `?camp=<camp>&bid=<bid>&name=<player name>`.
 
 Out of scope for v1: any GM tools, map editing, character sheets, GeezSheets' own 2D editor. The GM
 keeps using GeezTabletop (Godot). We do not change GeezSheets.
@@ -20,7 +20,7 @@ first. The writer is `../godot-vtt/scripts/geezsheets_bridge.gd` (`floor_record`
 - `<camp>` comes from the URL: `index.html?camp=world__daddies`. Everything lives under
   `geezvtt/live/<camp>/`.
 - Which map: `dmAt.target` is the battle id `<bid>` the GM is showing. Follow it live: when it
-  changes, load the new map. `?bid=` in the URL overrides it (for testing).
+  changes, load the new map. `?bid=` pins that map. If `dmAt` changes, show 'The GM moved to another map' and a Follow button that clears the pin.
 - Map: `table3d/<bid>/meta`, `table3d/<bid>/floors/<f>`, `table3d/<bid>/doors/<f>`,
   `table3d/<bid>/tokenInfo/<tid>`.
 - Tokens: `tokens/<bid>/<tid>` = `{x, y, f, light?}`; x, y are 0..1 of `meta.size`, the middle of
@@ -100,11 +100,15 @@ use x = grid x, z = grid y, y up. Floor `f` sits at y = f * 3.0 (`MapData.LEVEL_
    and image.
 10. **Status.** A small corner badge: connected / offline / waiting for the GM to show a map.
 
-## Performance (phones are the target)
+## Performance (older laptops and Intel MacBooks are the target)
 
 - One draw call per floor texture, per wall material. Instanced or cloned props.
-- Device pixel ratio capped at 2. Shadows off on phones (a single directional shadow on desktop is
-  fine).
+- Render on demand; an idle map draws zero frames. Camera damping, tweens, doors, pings and weather
+  keep drawing only while active; data and asset loads invalidate the view.
+- Auto quality only steps down on sustained slow active frames: pixel ratio caps 2 / 1.5 / 1,
+  point lights 8 / 3 / 1, weather particles 260 / 130 / 60. Low disables antialiasing and uses
+  Lambert materials. Shadows stay off. Auto / High / Low is remembered in localStorage.
+- Close 3D calls `window.close()` and shows a manual tab-close notice when the browser keeps it open.
 - Rebuild only the floor that changed when `floors/<f>` changes; door state changes only touch doors.
 - A 100x100-cell map must load in a few seconds on a mid-range phone.
 

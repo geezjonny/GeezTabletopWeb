@@ -3,3 +3,4 @@ import './coordinates.test.js';
 import './rules.test.js';
 import './visibility.test.js';
 import './movement.test.js';
+import './rendering.test.js';

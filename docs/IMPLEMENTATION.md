@@ -65,3 +65,27 @@ Each commit message must end with a blank line and:
 ```text
 Co-Authored-By: Codex <noreply@openai.com>
 ```
+
+## Laptop performance update
+
+The computer player page uses a coalesced requestAnimationFrame invalidation helper; idle
+views draw no frames. Camera damping, finite token/door tweens, animated pings and weather
+request further frames while active. Reduced-motion pings expire using a timer rather than
+an animation loop. Texture, avatar and model completions invalidate the view.
+
+Auto measures consecutive active frame intervals (idle gaps reset the measurement). Over
+windows of at least one second and 20 frames it steps down above 34 ms average in the first
+six seconds, or 42 ms afterward. It never upgrades automatically. Quality tiers cap pixel
+ratio at 2 / 1.5 / 1, point lights at 8 / 3 / 1 and particles at 260 / 130 / 60. Low uses
+Lambert materials with the same fog/cutaway hooks and an antialias-free WebGL context.
+Changing antialiasing replaces the canvas, preserving the camera and token selection and
+reconnecting input. Explicit High / Low choices and Auto are stored locally.
+
+Close 3D supports the new-tab entry from GeezSheets and provides a persistent manual-close
+notice if closing is blocked. A bid override stays pinned when dmAt changes; the persistent
+GM-moved notice offers Follow, which removes the URL pin and resumes live map following.
+
+The extended checks cover demand scheduling, sustained quality reduction, browser idle
+frame counts, quality budgets/materials/context replacement/persistence, input after canvas
+replacement, Close 3D, and the pinned-map notice/follow flow through the real Firebase adapter.
+Physical older-laptop and Intel MacBook performance remains unverified.

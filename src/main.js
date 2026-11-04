@@ -1,3 +1,6 @@
+import {invalidate,demandLoop} from './rendering.js';
+import {Quality,QUALITY_KEY} from './quality.js';
+import {lowMaterials} from './materials.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {Floor3D,prepareAssets} from './map3d.js';
@@ -10,14 +13,18 @@ import {centre,heightAt,LEVEL_HEIGHT,tokenCell,span} from './coordinates.js';
 import {blockers} from './rules.js';
 import {connectFirebase,connectSample} from './firebase.js';
 
-const params=new URLSearchParams(location.search),sample=params.get('sample')==='1',camp=sample?'sample':params.get('camp')||'',override=params.get('bid');
+const params=new URLSearchParams(location.search),sample=params.get('sample')==='1',camp=sample?'sample':params.get('camp')||'',initialOverride=params.get('bid');
+let override=initialOverride;
 const storageKey=`geeztabletop:player:${camp}`,loadedAt=Date.now(),seenHandouts=new Set();
 const state={bid:'',meta:null,floors:{},doors:{},tokens:{},info:{},things:{},session:{},pings:{},f:0,identity:null,connected:false};
 try{state.identity=JSON.parse(localStorage.getItem(storageKey));}catch{/* Browser privacy mode can disable storage. */}
 if(params.has('name'))state.identity={name:params.get('name').trim(),id:''};
 const ui=createUI(p=>{state.identity=p;try{localStorage.setItem(storageKey,JSON.stringify(p));}catch{}ui.identity(p);refresh(true);});
 ui.identity(state.identity);
-let renderer,scene,camera,controls,tokens,pings,atmosphere,connection,target='',focused=false,lightClock=0;
+let renderer,scene,camera,controls,tokens,pings,atmosphere,connection,target='',focused=false,removeMovement,appliedQuality;
+let savedQuality;try{savedQuality=localStorage.getItem(QUALITY_KEY);}catch{}
+const selection={selected:false};
+const quality=new Quality(savedQuality,applyQuality),metrics={frames:0},startedAt=performance.now();
 const built=new Map(),explored=new Map(),raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const own=()=>ownToken(state.tokens,state.info,state.things,state.identity);
@@ -28,7 +35,7 @@ function follow(bid){
   if(bid===state.bid)return;
   for(const floor of built.values())floor.dispose();built.clear();tokens.dispose();pings.clear();
   Object.assign(state,{bid,meta:null,floors:{},doors:{},tokens:{},info:{},f:0});focused=false;
-  connection.follow(bid);status();ui.map(state.meta,state.f,state.session.lockMove);
+  invalidate();connection.follow(bid);status();ui.map(state.meta,state.f,state.session.lockMove);
 }
 function buildFloor(f){
   built.get(f)?.dispose();built.delete(f);const record=state.floors[f];if(!record||!state.meta)return;
@@ -43,7 +50,7 @@ function lightsFor(f){
   return lights;
 }
 function refresh(recentre=false){
-  if(!state.meta||!tokens)return;
+  invalidate();if(!state.meta||!tokens)return;
   const id=own(),record=state.tokens[id],point=ownPoint(),floors=(state.meta.floors||[]).filter(f=>f!==null).map(Number);
   const previous=state.f;state.f=record?Number(record.f||0):floors.includes(0)?0:Math.min(...floors,Infinity);if(!Number.isFinite(state.f))state.f=0;
   const dark=state.meta.light==='dark'||state.meta.time==='night';
@@ -59,7 +66,7 @@ function refresh(recentre=false){
 function findMe(){
   if(!state.meta)return;const p=ownPoint()||{x:state.meta.size.x/2,y:state.meta.size.y/2},floor=state.floors[state.f],h=state.f*3+heightAt(floor,p.x,p.y);
   const delta=new THREE.Vector3(p.x,h,p.y).sub(controls.target);controls.target.add(delta);camera.position.add(delta);
-  if(!focused){camera.position.set(p.x+9,h+14,p.y+12);controls.target.set(p.x,h,p.y);}controls.update();
+  if(!focused){camera.position.set(p.x+9,h+14,p.y+12);controls.target.set(p.x,h,p.y);}controls.update();invalidate();
 }
 function pick(event){
   if(!state.meta)return null;const rect=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
@@ -86,31 +93,66 @@ async function ping(hit){
   if(!state.meta)return;if(state.session.lockPings){ui.notice('The GM has locked pings');return;}
   try{await connection.ping({v:`vtt:${state.bid}`,x:Math.max(0,Math.min(1,hit.x/state.meta.size.x)),y:Math.max(0,Math.min(1,hit.y/state.meta.size.y)),f:state.f,by:state.identity?.name||'Player',ts:Date.now()});}catch(e){ui.notice(`Ping failed: ${e.message}`);}
 }
-async function start(){
-  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.domElement.setAttribute('aria-label','Battle map: orbit, pan, zoom, and move your character');document.getElementById('map').append(renderer.domElement);
-  scene=new THREE.Scene();scene.background=new THREE.Color('#27343d');camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,500);camera.position.set(9,14,12);
+function installControls(targetPoint){
   controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=3;controls.maxDistance=120;controls.minPolarAngle=.12;controls.maxPolarAngle=Math.PI/2-.22;controls.maxTargetRadius=150;controls.screenSpacePanning=false;
-  tokens=new Tokens3D(scene);pings=new Pings(scene);atmosphere=new Atmosphere(scene);
-  ui.find(findMe);installMovement({canvas:renderer.domElement,controls,pick,own,move,ping,notice:ui.notice});
-  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));});
-  reduced.addEventListener('change',()=>atmosphere.set(state.meta,reduced.matches));
-  let previous=performance.now();
-  renderer.setAnimationLoop(now=>{
-    const dt=Math.min((now-previous)/1000,.1);previous=now;controls.update();camera.position.y=Math.max(camera.position.y,state.f*3+heightAt(state.floors[state.f],camera.position.x,camera.position.z)+.5);
-    const point=ownPoint();for(const [f,b]of built)if(f<=state.f)b.update(dt,f===state.f?point:null,camera.position,reduced.matches);
-    tokens.update(dt,reduced.matches);pings.update(reduced.matches);atmosphere.update(dt,controls.target,reduced.matches);
-    lightClock+=dt;if(lightClock>.3){atmosphere.lights(lightsFor(state.f),camera.position);lightClock=0;}
-    renderer.render(scene,camera);
+  if(targetPoint){controls.target.copy(targetPoint);controls.update();}
+  controls.addEventListener('change',invalidate);controls.addEventListener('start',invalidate);
+  removeMovement=installMovement({canvas:renderer.domElement,controls,pick,own,move,ping,notice:ui.notice,selection});
+}
+function makeRenderer(settings){
+  const old=renderer,targetPoint=controls?.target.clone();
+  removeMovement?.();controls?.dispose();
+  renderer=new THREE.WebGLRenderer({antialias:settings.antialias,powerPreference:'default'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,settings.pixelRatio));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.domElement.setAttribute('aria-label','Battle map: orbit, pan, zoom, and move your character');
+  if(old){old.domElement.replaceWith(renderer.domElement);old.dispose();old.forceContextLoss();}
+  else document.getElementById('map').append(renderer.domElement);
+  installControls(targetPoint);
+}
+function applyQuality(settings=quality.settings){
+  const wasLow=appliedQuality?.name==='Low',isLow=settings.name==='Low';
+  lowMaterials(isLow);
+  if(!renderer||appliedQuality.antialias!==settings.antialias)makeRenderer(settings);
+  else renderer.setPixelRatio(Math.min(devicePixelRatio,settings.pixelRatio));
+  atmosphere?.quality(settings);
+  if(atmosphere)atmosphere.lights(lightsFor(state.f),camera.position);
+  if(appliedQuality&&wasLow!==isLow){for(const f of [...built.keys()])buildFloor(f);tokens.dispose();refresh();}
+  appliedQuality=settings;ui.quality(quality.mode,settings.name);invalidate();
+}
+function targetChanged(bid){
+  target=bid;
+  if(connection)follow(override||target);
+  ui.gmMoved(!!override&&!!target&&target!==override,()=>{
+    override=null;const url=new URL(location.href);url.searchParams.delete('bid');history.replaceState(null,'',url);
+    follow(target);ui.gmMoved(false);
   });
+}
+async function start(){
+  scene=new THREE.Scene();scene.background=new THREE.Color('#27343d');camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,500);camera.position.set(9,14,12);
+  tokens=new Tokens3D(scene);pings=new Pings(scene);atmosphere=new Atmosphere(scene);
+  demandLoop((dt,interval,now)=>{
+    if(document.hidden)return false;
+    let active=controls.update();
+    camera.position.y=Math.max(camera.position.y,state.f*3+heightAt(state.floors[state.f],camera.position.x,camera.position.z)+.5);
+    const point=ownPoint();for(const [f,b]of built)if(f<=state.f)active=b.update(dt,f===state.f?point:null,camera.position,reduced.matches)||active;
+    active=tokens.update(dt,reduced.matches)||active;active=pings.update(reduced.matches)||active;active=atmosphere.update(dt,controls.target,reduced.matches)||active;
+    atmosphere.lights(lightsFor(state.f),camera.position);
+    renderer.render(scene,camera);metrics.frames++;
+    quality.sample(interval,now-startedAt);
+    return active;
+  });
+  applyQuality();ui.find(findMe);ui.onQuality(mode=>{try{localStorage.setItem(QUALITY_KEY,mode);}catch{}quality.select(mode);});
+  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,quality.settings.pixelRatio));invalidate();});
+  document.addEventListener('visibilitychange',invalidate);
+  reduced.addEventListener('change',()=>{atmosphere.set(state.meta,reduced.matches);invalidate();});
   await prepareAssets();
   const callbacks={
     error:reportError,
     connected(v){state.connected=!!v;status();},
-    target(bid){target=override||bid;if(connection)follow(target);},
+    target:targetChanged,
     things(things){state.things=things;ui.things(things,camp);refresh();},
     session(session){state.session=session;refresh();},
-    meta(meta){const changed=JSON.stringify(state.meta?.size)!==JSON.stringify(meta?.size);state.meta=meta;atmosphere.set(meta,reduced.matches);if(!meta){for(const b of built.values())b.dispose();built.clear();tokens.dispose();pings.clear();ui.map(null,0);status();return;}if(changed)for(const f of Object.keys(state.floors))buildFloor(Number(f));refresh();},
+    meta(meta){const changed=JSON.stringify(state.meta?.size)!==JSON.stringify(meta?.size);state.meta=meta;atmosphere.set(meta,reduced.matches);if(!meta){invalidate();for(const b of built.values())b.dispose();built.clear();tokens.dispose();pings.clear();ui.map(null,0);status();return;}if(changed)for(const f of Object.keys(state.floors))buildFloor(Number(f));refresh();},
     floor(f,record){if(record)state.floors[f]=record;else delete state.floors[f];buildFloor(f);refresh();},
     doors(f,states){state.doors[f]=states;built.get(f)?.doorStates(states);refresh();},
     tokenInfo(info){state.info=info;refresh();},
@@ -121,7 +163,7 @@ async function start(){
   if(!sample&&!camp){ui.status('Add ?camp=your_campaign to join');if(!state.identity?.name)ui.picker();return;}
   connection=await (sample?connectSample(callbacks):connectFirebase(camp,callbacks));follow(override||target);
   if(!state.identity?.name)ui.picker();
-  window.__TABLETOP__={state,renderer,scene,camera,controls,built,tokens,pings,move,ping,useStairs,refresh,findMe,own,pick,ready:async()=>{await Promise.all([...built.values()].map(f=>f.ready));}};
+  window.__TABLETOP__={state,get renderer(){return renderer;},scene,camera,get controls(){return controls;},quality,metrics,invalidate,atmosphere,built,tokens,pings,move,ping,useStairs,refresh,findMe,own,pick,ready:async()=>{await Promise.all([...built.values()].map(f=>f.ready));}};
   window.render_game_to_text=()=>JSON.stringify({coords:'grid x:right y:down; world x:right y:up z:down; floor height:3',bid:state.bid,floor:state.f,own:own(),tokens:state.tokens,visibleTokens:[...tokens.entries].filter(([,e])=>e.group.visible).map(([id])=>id),floors:[...built.keys()],drawCalls:renderer.info.render.calls});
   window.advanceTime=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 }

@@ -54,6 +54,13 @@ export async function checkFirebase(browser,base){
   await pinned.goto(`${base}/?camp=browser_test&bid=sample_tavern&name=Test`);await pinned.waitForFunction(()=>window.__TABLETOP__?.own()==='gh_test');
   await pinned.evaluate(root=>window.__FIREBASE_TEST__.emit(root+'dmAt',{target:'another_map'}),root);
   assert.equal(await pinned.evaluate(()=>window.__TABLETOP__.state.bid),'sample_tavern','bid override pins the requested map');
+  await pinned.getByText('The GM moved to another map',{exact:false}).waitFor();
+  await pinned.getByRole('button',{name:'Follow',exact:true}).click();
+  await pinned.waitForFunction(()=>window.__TABLETOP__.state.bid==='another_map');
+  assert.equal(await pinned.locator('#gm-moved').isVisible(),false);
+  assert.equal(new URL(pinned.url()).searchParams.has('bid'),false);
+  await pinned.evaluate(root=>window.__FIREBASE_TEST__.emit(root+'dmAt',{target:'next_map'}),root);
+  await pinned.waitForFunction(()=>window.__TABLETOP__.state.bid==='next_map');
   assert.deepEqual(errors,[],'Firebase integration has no console errors');await context.close();
-  console.log('PASS: simulated Firebase anonymous auth, public paths, GM token and door updates, player writes, handouts, incremental floor rebuild, map follow and unsubscribe; no production Firebase access.');
+  console.log('PASS: simulated Firebase anonymous auth, public paths, GM token and door updates, player writes, handouts, incremental floor rebuild, map follow and unsubscribe, bid pin/change notice and explicit follow; no production Firebase access.');
 }

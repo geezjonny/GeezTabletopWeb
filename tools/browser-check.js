@@ -18,6 +18,7 @@ let browser;
 try{
   browser=await chromium.launch({headless:true,executablePath:await executable(),args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   const context=await browser.newContext({viewport:{width:1280,height:900}}),page=await context.newPage(),errors=[],external=[];
+  await context.addInitScript(()=>{if(!localStorage.getItem('geeztabletop:quality'))localStorage.setItem('geeztabletop:quality','high');});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   await context.route('**/*',route=>{if(!route.request().url().startsWith(base)){external.push(route.request().url());return route.abort();}return route.continue();});
   await page.goto(`${base}/?sample=1`);await page.waitForFunction(()=>window.__TABLETOP__?.state.meta);
@@ -54,6 +55,44 @@ try{
   await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/sample-desktop.png'});
   // Verify a second load remembers the player without requiring the picker.
   await page.reload();await page.waitForFunction(()=>window.__TABLETOP__?.own()==='gh_test');assert.equal(await page.locator('#picker').isVisible(),false);
+  // An idle map must submit zero frames; changes wake it and settle again.
+  await page.evaluate(()=>{const t=window.__TABLETOP__;t.state.meta.weather={kind:'Clear'};t.atmosphere.set(t.state.meta,false);t.refresh();});
+  await page.waitForTimeout(1600);
+  const idleFrames=await page.evaluate(()=>window.__TABLETOP__.metrics.frames);
+  await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>window.__TABLETOP__.metrics.frames),idleFrames,'idle draws zero frames');
+  await page.evaluate(()=>window.__TABLETOP__.invalidate());await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.metrics.frames),idleFrames+1,'one invalidation draws one frame');
+  assert.equal(await page.getByRole('button',{name:'Close 3D',exact:true}).isVisible(),true);
+  await page.evaluate(()=>{window.close=()=>{window.closeCalled=true;};});await page.locator('#close-3d').click();
+  await page.getByText('Close this tab to go back to the 2D map',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>window.closeCalled),true);
+  // Exercise the actual quality callback, renderer replacement, and material shaders.
+  await page.selectOption('#quality','high');
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.atmosphere.lightLimit),8);
+  await page.selectOption('#quality','auto');
+  await page.evaluate(()=>{const q=window.__TABLETOP__.quality;q.reset();for(let i=0;i<25;i++)q.sample(40,2000);});
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.quality.settings.name),'Medium');
+  assert.deepEqual(await page.evaluate(()=>{const a=window.__TABLETOP__.atmosphere;return [a.lightLimit,a.particles.geometry.drawRange.count];}),[3,130]);
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.renderer.getPixelRatio()),Math.min(1.5,await page.evaluate(()=>devicePixelRatio)));
+  await page.evaluate(()=>{const q=window.__TABLETOP__.quality;q.reset();for(let i=0;i<20;i++)q.sample(50,90000);});
+  await page.evaluate(()=>window.__TABLETOP__.ready());await page.waitForTimeout(200);
+  const low=await page.evaluate(()=>{const t=window.__TABLETOP__;let standard=0,lambert=0;t.scene.traverse(o=>{for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[]){standard+=!!m.isMeshStandardMaterial;lambert+=!!m.isMeshLambertMaterial;}});return {name:t.quality.settings.name,ratio:t.renderer.getPixelRatio(),aa:t.renderer.getContext().getContextAttributes().antialias,standard,lambert};});
+  assert.equal(low.name,'Low');assert.equal(low.ratio,1);assert.equal(low.aa,false);assert.equal(low.standard,0);assert.ok(low.lambert>0);
+  assert.deepEqual(await page.evaluate(()=>{const a=window.__TABLETOP__.atmosphere;return [a.lightLimit,a.particles.geometry.drawRange.count];}),[1,60]);
+  await page.evaluate(()=>{const t=window.__TABLETOP__;t.state.meta.light='dark';t.state.meta.time='night';t.refresh();});
+  await page.waitForTimeout(100);
+  await page.evaluate(()=>{const q=window.__TABLETOP__.quality;for(let i=0;i<120;i++)q.sample(10,100000);});
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.quality.level),2,'auto never upgrades');
+  await page.selectOption('#quality','low');await page.reload();await page.waitForFunction(()=>window.__TABLETOP__?.state.meta);
+  assert.equal(await page.locator('#quality').inputValue(),'low','quality preference persists');
+  await page.selectOption('#quality','high');await page.evaluate(()=>window.__TABLETOP__.ready());await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(()=>window.__TABLETOP__.renderer.getContext().getContextAttributes().antialias),true);
+  // Input still works after replacing the WebGL canvas in both directions.
+  await page.evaluate(()=>window.__TABLETOP__.findMe());await page.waitForTimeout(200);
+  from=await screen(3.5,.12,6.5);to=await screen(4.5,0,6.5);
+  await page.mouse.click(from.x,from.y);await page.mouse.click(to.x,to.y);
+  await page.waitForFunction(()=>window.__TABLETOP__.state.tokens.gh_test.x===.375);
+  console.log('PASS: idle draws zero frames; invalidation wakes one frame; Auto High/Medium/Low steps, no upgrades, Lambert materials, antialias replacement, quality persistence, input after canvas replacement, Close 3D fallback.');
   const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2,reducedMotion:'reduce'}),phone=await mobile.newPage();
   phone.on('pageerror',e=>errors.push(e.message));phone.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   await mobile.route('**/*',route=>route.request().url().startsWith(base)?route.continue():route.abort());

@@ -1,3 +1,4 @@
+import {simplifyMaterial} from './materials.js';
 import * as THREE from 'three';
 import {visibilityPolygon} from './visibility.js';
 import {blockers} from './rules.js';
@@ -13,6 +14,7 @@ export class Vision {
     this.enabled={value:0};
   }
   material(material) {
+    material=simplifyMaterial(material);
     const previous=material.onBeforeCompile;
     material.onBeforeCompile=shader=>{
       previous?.(shader);

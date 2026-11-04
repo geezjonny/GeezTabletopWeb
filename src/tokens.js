@@ -1,3 +1,4 @@
+import {litMaterial} from './materials.js';
 import * as THREE from 'three';
 import {span,centre,tokenCell,tokenRecord,heightAt,LEVEL_HEIGHT} from './coordinates.js';
 import {blockers,lineOfSight,onStair} from './rules.js';
@@ -40,7 +41,7 @@ export class Tokens3D {
     for(const [id,r]of Object.entries(records)){
       const look=tokenLook(id,info,things),key=JSON.stringify([look,id===own]);let entry=this.entries.get(id);
       if(entry?.key!==key){if(entry)disposeGroup(entry.group);const group=new THREE.Group(),n=span(look.size);
-        const base=new THREE.Mesh(new THREE.CylinderGeometry(n*.43,n*.46,.12,24),new THREE.MeshStandardMaterial({color:look.color,roughness:.6}));base.position.y=.1;group.add(base);
+        const base=new THREE.Mesh(new THREE.CylinderGeometry(n*.43,n*.46,.12,24),litMaterial({color:look.color,roughness:.6}));base.position.y=.1;group.add(base);
         if(id===own){const ring=new THREE.Mesh(new THREE.TorusGeometry(n*.49,.035,8,40),new THREE.MeshBasicMaterial({color:'#ffe2a3'}));ring.rotation.x=Math.PI/2;ring.position.y=.18;group.add(ring);}
         const initials=look.name.split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase(),sprite=billboard(initials,look.color,look.avatar&&safeImage(look.avatar)?look.avatar:null);sprite.scale.set(n*.95,n*.95,1);sprite.position.y=n*.6+.3;group.add(sprite);
         const label=billboard(look.name);label.scale.set(Math.max(1.2,Math.min(2.4,look.name.length*.13)),.45,1);label.position.y=n+ .65;group.add(label);
@@ -51,11 +52,11 @@ export class Tokens3D {
     }
   }
   visibility(f,viewer,segments,lights,dark){for(const [id,e]of this.entries){const p={x:e.target.x,y:e.target.z};e.group.visible=e.f===f&&(id===this.own||(!viewer&&!dark)||visiblePoint(p,viewer,segments,lights,dark));}}
-  update(dt,reduced){for(const e of this.entries.values())e.group.position.lerp(e.target,reduced?1:1-Math.exp(-dt*14));}
+  update(dt,reduced){let active=false;for(const e of this.entries.values()){if(reduced||e.group.position.distanceToSquared(e.target)<.000001)e.group.position.copy(e.target);else{e.group.position.lerp(e.target,1-Math.exp(-dt*14));active=true;}}return active;}
   dispose(){for(const e of this.entries.values())disposeGroup(e.group);this.entries.clear();}
 }
-export function installMovement({canvas,controls,pick,own,getState,move,ping,notice}){
-  let gesture=null,selected=false;
+export function installMovement({canvas,controls,pick,own,getState,move,ping,notice,selection={selected:false}}){
+  let gesture=null;
   const cancel=()=>{if(gesture)clearTimeout(gesture.timer);gesture=null;controls.enabled=true;};
   canvas.addEventListener('pointerdown',e=>{
     if(e.button!==0)return;if(gesture){cancel();return;}
@@ -69,13 +70,14 @@ export function installMovement({canvas,controls,pick,own,getState,move,ping,not
   canvas.addEventListener('pointerup',async e=>{
     if(!gesture||gesture.pointer!==e.pointerId)return;const g=gesture,hit=pick(e);cancel();
     if(g.long||!hit)return;
-    if(g.drag){selected=true;if(g.moved){await move(hit);selected=false;}else notice('Token selected · tap a cell to move');}
-    else if(selected&&!g.moved){await move(hit);selected=false;}
+    if(g.drag){selection.selected=true;if(g.moved){await move(hit);selection.selected=false;}else notice('Token selected · tap a cell to move');}
+    else if(selection.selected&&!g.moved){await move(hit);selection.selected=false;}
   });
   canvas.addEventListener('pointercancel',cancel);
-  window.addEventListener('pointerup',()=>{if(gesture)cancel();});
+  const release=()=>{if(gesture)cancel();};window.addEventListener('pointerup',release);
   canvas.addEventListener('contextmenu',e=>{e.preventDefault();const hit=pick(e);if(hit)ping(hit);});
   window.addEventListener('blur',cancel);
+  return ()=>{cancel();window.removeEventListener('pointerup',release);window.removeEventListener('blur',cancel);};
 }
 export function moveRecord(hit,record,look,meta){
   const cell={x:Math.floor(hit.x),y:Math.floor(hit.y)};

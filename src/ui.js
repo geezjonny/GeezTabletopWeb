@@ -4,11 +4,15 @@ export function createUI(onIdentity) {
   const dialog=$('picker');
   const picker=()=>{if(!dialog.open)dialog.showModal();};
   $('identity').onclick=picker;
+  $('close-3d').onclick=()=>{window.close();setTimeout(()=>{if(!window.closed)$('close-notice').hidden=false;},0);};
   $('help').onclick=()=>{const hidden=!$('instructions').hidden;$('instructions').hidden=hidden;$('help').setAttribute('aria-expanded',String(!hidden));};
   $('pcs').onchange=()=>{if(pcs[$('pcs').value])$('player-name').value=pcs[$('pcs').value].name;};
   dialog.querySelector('form').onsubmit=e=>{e.preventDefault();const name=$('player-name').value.trim();if(!name)return;const id=$('pcs').value;onIdentity({name,id:pcs[id]?.name===name?id:''});dialog.close();};
   return {
     picker,
+    quality(mode,tier){$('quality').value=mode;$('quality-tier').textContent=mode==='auto'?tier:'';},
+    onQuality(callback){$('quality').onchange=e=>callback(e.target.value);},
+    gmMoved(show,follow){$('gm-moved').hidden=!show;$('follow-gm').onclick=follow;},
     identity(p){$('player-name').value=p?.name||'';$('identity').textContent=p?.name||'Choose PC';},
     things(things,camp){
       pcs=Object.fromEntries(Object.entries(things).filter(([,t])=>t.type==='npc'&&t.traits?.pc&&t.campaign===camp));

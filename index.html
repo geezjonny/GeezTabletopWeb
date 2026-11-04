@@ -22,6 +22,9 @@
   <header><div class="brand">G<span>◆</span>T <small>PLAYER TABLE</small></div><div id="status" role="status">Loading…</div></header>
   <section id="map-info"><h1 id="title">GeezTabletop</h1><p id="floor">Waiting for a map</p></section>
   <nav aria-label="Map controls"><button id="find">◎ Find me</button><button id="stairs" hidden>Go up</button><button id="identity">Choose PC</button><button id="help" aria-expanded="false">?</button></nav>
+  <section id="viewer-controls" aria-label="Viewer settings"><label>Quality<select id="quality"><option value="auto">Auto</option><option value="high">High</option><option value="low">Low</option></select></label><span id="quality-tier"></span><button id="close-3d">Close 3D</button></section>
+  <div id="gm-moved" role="status" hidden>The GM moved to another map <button id="follow-gm">Follow</button></div>
+  <div id="close-notice" role="status" hidden>Close this tab to go back to the 2D map</div>
   <aside id="instructions" hidden>Drag your token, or select it and tap a cell to move. Right-click or hold a cell to ping. Drag the map to orbit; two fingers to pan and pinch to zoom.</aside>
   <div id="notice" role="status" aria-live="polite"></div>
   <dialog id="picker"><form><p class="eyebrow">TAKE YOUR PLACE</p><h2>Who’s at the table?</h2><label>Your character<select id="pcs"><option value="">Type a name below</option></select></label><label>Player / PC name<input id="player-name" maxlength="80" required autocomplete="nickname" placeholder="Character name"></label><button type="submit">Join the map →</button></form></dialog>
