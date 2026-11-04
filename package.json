@@ -1,0 +1,11 @@
+{
+  "name": "geez-tabletop-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "serve": "node tools/serve.js",
+    "test:browser": "node tools/browser-check.js"
+  },
+  "devDependencies": {"three": "0.180.0", "playwright": "1.56.1"}
+}

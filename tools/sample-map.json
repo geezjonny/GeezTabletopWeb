@@ -1,0 +1,50 @@
+{
+  "bid":"sample_tavern",
+  "meta":{"name":"The Gilded Goose","size":{"x":12,"y":10},"origin":{"x":-4,"y":-3},"floors":[0,1],"floorNames":{"0":"Tavern & courtyard","1":"The guest rooms"},"light":"lit","time":"day","weather":{"kind":"Leaves","wind":0.25},"ts":0},
+  "session":{"lockMove":false,"lockPings":false},
+  "things":{"test_pc":{"name":"Test","type":"npc","campaign":"sample","traits":{"pc":true,"size":"medium"}}},
+  "tokenInfo":{"gh_test":{"name":"Test","size":"medium","color":"#79cbb9","pc":true},"gh_innkeeper":{"name":"Innkeeper","size":"medium","color":"#e8bd78","pc":false},"gh_guard":{"name":"Sleeping guard","size":"medium","color":"#c491a4","pc":false},"gh_ogre":{"name":"Ogre","size":"large","color":"#b68d75","pc":false}},
+  "tokens":{"gh_test":{"x":0.29167,"y":0.65,"f":0,"light":{"range":5,"on":true}},"gh_innkeeper":{"x":0.375,"y":0.45,"f":0},"gh_guard":{"x":0.29167,"y":0.25,"f":1},"gh_ogre":{"x":0.75,"y":0.7,"f":0}},
+  "doors":{"0":{"d6_4_1":"open","d4_9_0":"closed","window":"closed"},"1":{"guest":"closed"}},
+  "floors":{
+    "0":{
+      "paint":{
+        "0_0":"grass","1_0":"grass","2_0":"grass","3_0":"grass","4_0":"grass","5_0":"grass","6_0":"grass","7_0":"grass","8_0":"grass","9_0":"grass","10_0":"grass","11_0":"grass",
+        "0_1":"grass","1_1":"wood","2_1":"wood","3_1":"wood","4_1":"wood","5_1":"wood","6_1":"stone","7_1":"stone","8_1":"stone","9_1":"stone","10_1":"stone","11_1":"grass",
+        "0_2":"grass","1_2":"wood","2_2":"wood","3_2":"wood","4_2":"wood","5_2":"wood","6_2":"stone","7_2":"stone","8_2":"stone","9_2":"stone","10_2":"stone","11_2":"grass",
+        "0_3":"grass","1_3":"wood","2_3":"wood","3_3":"wood","4_3":"wood","5_3":"wood","6_3":"stone","7_3":"stone","8_3":"stone","9_3":"stone","10_3":"stone","11_3":"grass",
+        "0_4":"grass","1_4":"wood","2_4":"wood","3_4":"wood","4_4":"wood","5_4":"wood","6_4":"stone","7_4":"stone","8_4":"stone","9_4":"stone","10_4":"stone","11_4":"grass",
+        "0_5":"grass","1_5":"wood","2_5":"wood","3_5":"wood","4_5":"wood","5_5":"wood","6_5":"stone","7_5":"stone","8_5":"stone","9_5":"stone","10_5":"stone","11_5":"grass",
+        "0_6":"grass","1_6":"wood","2_6":"wood","3_6":"wood","4_6":"wood","5_6":"wood","6_6":"stone","7_6":"stone","8_6":"stone","9_6":"stone","10_6":"stone","11_6":"grass",
+        "0_7":"grass","1_7":"wood","2_7":"wood","3_7":"wood","4_7":"wood","5_7":"wood","6_7":"stone","7_7":"stone","8_7":"stone","9_7":"stone","10_7":"stone","11_7":"grass",
+        "0_8":"grass","1_8":"wood","2_8":"wood","3_8":"wood","4_8":"wood","5_8":"wood","6_8":"stone","7_8":"stone","8_8":"stone","9_8":"stone","10_8":"stone","11_8":"grass",
+        "0_9":"grass","1_9":"grass","2_9":"grass","3_9":"grass","4_9":"cobble","5_9":"grass","6_9":"grass","7_9":"grass","8_9":"grass","9_9":"grass","10_9":"grass","11_9":"grass"
+      },
+      "elevation":{"8_2":0.5,"9_2":0.5,"8_3":0.5,"9_3":0.5},
+      "walls":{
+        "north":{"x1":1,"y1":1,"x2":11,"y2":1,"mat":"plaster"},"west":{"x1":1,"y1":1,"x2":1,"y2":9,"mat":"timber"},
+        "south_w":{"x1":1,"y1":9,"x2":4,"y2":9,"mat":"timber"},"south_e":{"x1":5,"y1":9,"x2":11,"y2":9,"mat":"timber"},
+        "east_a":{"x1":11,"y1":1,"x2":11,"y2":3,"mat":"stone"},"east_b":{"x1":11,"y1":4,"x2":11,"y2":9,"mat":"stone"},
+        "partition_a":{"x1":6,"y1":1,"x2":6,"y2":4,"mat":"plaster"},"partition_b":{"x1":6,"y1":5,"x2":6,"y2":9,"mat":"plaster"}
+      },
+      "doors":{"d6_4_1":{"x1":6,"y1":4,"x2":6,"y2":5,"mat":"wood","kind":"wood"},"d4_9_0":{"x1":4,"y1":9,"x2":5,"y2":9,"mat":"wood","kind":"wood"},"window":{"x1":11,"y1":3,"x2":11,"y2":4,"mat":"stone","kind":"window"}},
+      "props":{"table":{"p":"round_table","x":3,"y":4,"rot":0,"s":1},"chair":{"p":"chair","x":2,"y":4,"rot":270,"s":1},"barrels":{"p":"barrel","x":9.5,"y":1.5,"rot":0,"s":1},"hearth":{"p":"fireplace","x":1.5,"y":2,"rot":90,"s":1},"stair":{"p":"stairs","x":4.5,"y":2.5,"rot":0,"s":1},"tree":{"p":"tree","x":0.5,"y":0.5,"rot":45,"s":0.6},"crate":{"p":"crate","x":10,"y":5,"rot":30,"s":1}},
+      "stairs":{"stair":{"x":4.5,"y":2.5,"w":1,"h":3,"rot":0,"to":1,"kind":"stairs"}},
+      "lights":{"hearth":{"x":2,"y":2,"range":6,"color":"#ffc17a"},"store":{"x":8,"y":4,"range":5,"color":"#ffcc88"}},
+      "roofs":{"1_1":"thatch","2_1":"thatch","3_1":"thatch","4_1":"thatch","5_1":"thatch","1_2":"thatch","2_2":"thatch","3_2":"thatch","4_2":"thatch","5_2":"thatch","1_3":"thatch","2_3":"thatch","3_3":"thatch","4_3":"thatch","5_3":"thatch","1_4":"thatch","2_4":"thatch","3_4":"thatch","4_4":"thatch","5_4":"thatch","1_5":"thatch","2_5":"thatch","3_5":"thatch","4_5":"thatch","5_5":"thatch","1_6":"thatch","2_6":"thatch","3_6":"thatch","4_6":"thatch","5_6":"thatch","1_7":"thatch","2_7":"thatch","3_7":"thatch","4_7":"thatch","5_7":"thatch","1_8":"thatch","2_8":"thatch","3_8":"thatch","4_8":"thatch","5_8":"thatch","8_1":"slate","9_1":"slate","10_1":"slate","8_2":"slate","9_2":"slate","10_2":"slate","8_3":"slate","9_3":"slate","10_3":"slate"},
+      "paths":{"walk":{"kind":"road","width":0.8,"points":[[4.5,9.9],[4.5,9]]}},
+      "decals":{"spill":{"kind":"blood","x":7.5,"y":5.5,"rot":25,"s":0.8}},
+      "labels":{"tavern":{"x":3.5,"y":7.8,"text":"TAPROOM","size":1}}
+    },
+    "1":{
+      "paint":{"1_1":"wood","2_1":"wood","3_1":"wood","4_1":"wood","5_1":"wood","1_2":"wood","2_2":"wood","3_2":"wood","4_2":"wood","5_2":"wood","1_3":"wood","2_3":"wood","3_3":"wood","4_3":"wood","5_3":"wood","1_4":"wood","2_4":"wood","3_4":"wood","4_4":"wood","5_4":"wood"},
+      "walls":{"north":{"x1":1,"y1":1,"x2":6,"y2":1,"mat":"timber"},"west":{"x1":1,"y1":1,"x2":1,"y2":5,"mat":"plaster"},"east":{"x1":6,"y1":1,"x2":6,"y2":5,"mat":"plaster"},"south_a":{"x1":1,"y1":5,"x2":4,"y2":5,"mat":"timber"},"south_b":{"x1":5,"y1":5,"x2":6,"y2":5,"mat":"timber"}},
+      "doors":{"guest":{"x1":4,"y1":5,"x2":5,"y2":5,"mat":"wood","kind":"curtain"}},
+      "props":{"bed":{"p":"bed","x":2,"y":2.5,"rot":0,"s":1},"chest":{"p":"chest","x":2,"y":4,"rot":90,"s":1}},
+      "lights":{"lamp":{"x":3.5,"y":2.5,"range":5,"color":"#ffe2aa"}},
+      "roofs":{"1_1":"thatch","2_1":"thatch","3_1":"thatch","4_1":"thatch","5_1":"thatch","1_2":"thatch","2_2":"thatch","3_2":"thatch","4_2":"thatch","5_2":"thatch","1_3":"thatch","2_3":"thatch","3_3":"thatch","4_3":"thatch","5_3":"thatch","1_4":"thatch","2_4":"thatch","3_4":"thatch","4_4":"thatch","5_4":"thatch"},
+      "labels":{"guest":{"x":3.5,"y":4,"text":"GUEST ROOMS","size":1}}
+    }
+  }
+}
+
