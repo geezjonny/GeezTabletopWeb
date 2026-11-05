@@ -4,3 +4,4 @@ import './rules.test.js';
 import './visibility.test.js';
 import './movement.test.js';
 import './rendering.test.js';
+import './picture.test.js';

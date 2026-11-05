@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {LEVEL_HEIGHT,heightAt,yaw,cellKey} from './coordinates.js';
 import {roofComponents,doorRules,intersects} from './rules.js';
+import {loadPicture} from './picture.js';
 
 const textures=new Map(),models=new Map();
 // Kit origins sit at the first cell; bridge props are centred on the footprint.
@@ -68,6 +69,7 @@ export class Floor3D {
       }
     }
     for(const [kind,batch]of tiles)this.ground.push(this.addBatch(batch,this.material('floor',kind)));
+    if(r.picture)this.pending.push(this.addPicture(r.picture));
     const walls=new Map();
     for(const wall of Object.values(r.walls||{})){
       const kind=wall.mat||'stone';if(!walls.has(kind))walls.set(kind,{batch:new GeometryBatch(),spans:[]});
@@ -105,6 +107,16 @@ export class Floor3D {
       const mesh=new THREE.Mesh(new THREE.PlaneGeometry(size,size),this.vision.material(new THREE.MeshBasicMaterial({map:texture(path),color:available(path)?'#ffffff':d.kind==='blood'?'#882c30':'#80744b',transparent:true,opacity:.7,depthWrite:false,side:THREE.DoubleSide})));mesh.rotation.set(-Math.PI/2,0,yaw(d.rot||0));mesh.position.set(d.x,heightAt(r,d.x,d.y)+.04,d.y);this.group.add(mesh);
     }
     for(const l of Object.values(r.labels||{})){const text=billboard(l.text);text.scale.multiplyScalar(l.size||1);text.position.set(l.x,heightAt(r,l.x,l.y)+.6,l.y);this.group.add(text);}
+  }
+  async addPicture(descriptor){
+    try {
+      const {image,rect:[x,z,w,h]}=await loadPicture(descriptor);
+      if(this.group.userData.disposed)return;
+      const map=new THREE.Texture(image);map.colorSpace=THREE.SRGBColorSpace;map.needsUpdate=true;
+      const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),this.vision.material(new THREE.MeshStandardMaterial({map,roughness:1,side:THREE.DoubleSide})));
+      mesh.rotation.x=-Math.PI/2;mesh.position.set(x+w/2,.01,z+h/2);mesh.userData.ownedTexture=map;
+      this.ground.forEach(o=>o.visible=false);this.ground=[mesh];this.group.add(mesh);invalidate();
+    } catch(error) { console.warn('GeezTabletop picture unavailable; using floor tiles',descriptor.dd2vtt,error); }
   }
   addProp(p){
     const wrapper=new THREE.Group();wrapper.position.set(p.x,heightAt(this.record,p.x,p.y),p.y);wrapper.rotation.y=yaw(p.rot||0);wrapper.scale.setScalar(p.s||1);this.group.add(wrapper);

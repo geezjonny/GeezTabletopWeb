@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 // The real Firebase adapter runs against module stubs; no production reads or writes.
 export async function checkFirebase(browser,base){
   const sample=JSON.parse(await readFile(new URL('./sample-map.json',import.meta.url),'utf8'));
+  const painting=(await readFile(new URL('../assets/textures/floor_wood.png',import.meta.url))).toString('base64');
   const context=await browser.newContext(),page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   const root='geezvtt/live/browser_test/',map=root+`table3d/${sample.bid}/`,data={'.info/connected':true,'geezvtt/campaign/things':sample.things,[root+'dmAt']:{target:sample.bid},[root+'session']:sample.session,[root+'pings']:{},[root+'handouts']:{old:{title:'Old handout',ts:1}},[map+'meta']:sample.meta,[map+'tokenInfo']:sample.tokenInfo,[root+`tokens/${sample.bid}`]:sample.tokens};
@@ -23,6 +24,7 @@ export async function checkFirebase(browser,base){
   `;
   await context.route('**/*',route=>{
     const url=route.request().url();if(url.startsWith(base))return route.continue();
+    if(url==='https://geezjonny.github.io/GeezSheets/battlemap/picture-fixture.dd2vtt')return route.fulfill({contentType:'application/json',body:JSON.stringify({image:painting})});
     if(url==='https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js')return route.fulfill({contentType:'text/javascript',body:'export const initializeApp=config=>({config});'});
     if(url==='https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js')return route.fulfill({contentType:'text/javascript',body:'export const getAuth=()=>({});export const signInAnonymously=async()=>{window.__FIREBASE_TEST__.auth=true;};'});
     if(url==='https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js')return route.fulfill({contentType:'text/javascript',body:database});
@@ -43,6 +45,10 @@ export async function checkFirebase(browser,base){
   await page.evaluate(root=>{const m=window.__FIREBASE_TEST__;m.emit(root+'handouts',{new:{title:'A new clue',text:'<script>plain text</script>',ts:Date.now()+1}});},root);
   await page.getByText('A new clue').waitFor();assert.equal(await page.locator('.handout p').textContent(),'<script>plain text</script>');await page.getByRole('button',{name:'Dismiss handout'}).click();
   // A changed floor replaces only that floor; existing door and token subscriptions stay live.
+  await page.evaluate(root=>{const m=window.__FIREBASE_TEST__,path=root+'table3d/sample_tavern/floors/0';m.emit(path,{...m.data[path],picture:{dd2vtt:'picture-fixture.dd2vtt',rect:[1,2,8,4]}});},root);
+  await page.evaluate(()=>window.__TABLETOP__.ready());
+  assert.deepEqual(await page.evaluate(()=>{const b=window.__TABLETOP__.built.get(0),p=b.ground[0];return {position:p.position.toArray(),width:p.geometry.parameters.width,height:p.geometry.parameters.height,walls:b.wallBatches.length>0,painting:!!p.material.map?.image};}),{position:[5,.01,4],width:8,height:4,walls:true,painting:true});
+  await page.evaluate(()=>window.__TABLETOP__.invalidate());await page.waitForTimeout(200);
   assert.ok(await page.evaluate(root=>{const t=window.__TABLETOP__,m=window.__FIREBASE_TEST__,b=t.built.get(1),old=t.built.get(0);const path=root+'table3d/sample_tavern/floors/0';m.emit(path,{...m.data[path],elevation:{'2_2':1}});return t.built.get(1)===b&&t.built.get(0)!==old;},root));
   await page.evaluate(root=>{const m=window.__FIREBASE_TEST__,old=root+'table3d/sample_tavern/',next=root+'table3d/next/';m.data[next+'meta']={...m.data[old+'meta'],name:'Second map',floors:[0]};m.data[next+'floors/0']=m.data[old+'floors/0'];m.data[next+'tokenInfo']=m.data[old+'tokenInfo'];m.data[root+'tokens/next']=m.data[root+'tokens/sample_tavern'];m.emit(root+'dmAt',{target:'next'});},root);
   await page.waitForFunction(()=>window.__TABLETOP__.state.bid==='next'&&window.__TABLETOP__.built.size===1);
